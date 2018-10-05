@@ -1,0 +1,342 @@
+Note: There are 3 users
+1) oracle - my1oracle
+2) admin - my1admin
+
+3) vt442189 - vt442189
+has 2 tables
+   1) customer
+   2) articles_formatted
+
+
+----------------------
+step 1:
+Login as oracle/my1oracle to the system
+
+step 2:
+sqlplus / as sysdba
+>startup
+
+-to shutdown
+>shutdown immediate
+
+if fails
+>shutdown abort (and then try again)
+
+----------------------
+-for tnsping to work
+/u01/app/oracle/product/12.1.0/dbhome_1/bin/ 
+lsnrctl start/status/stop
+
+tnsping <db_instance>
+tnsping orcl
+---------------
+>show all
+shows all the available properties
+------------------------
+-tables
+all_users
+dba_users
+sys_objects
+user_objects
+user_tables
+user_views
+user_triggers
+user_procedures
+------------------
+-to view the user
+select user from dual
+SQL> select to_char(sysdate, 'YYYY-MM-DD') from dual;
+
+----------------
+select to_char(current_timestamp, 'YYYY-MM-DD') from dual
+select current_date from dual;
+---------------------------
+-to create a table 
+1  create table rakesh(
+  2  emp_id number(4) not null,
+  3  emp_first_name varchar2(20) not null,
+  4  emp_last_name varchar2(20) not null,
+  5  emp_city varchar2(15) null,
+  6  last_updt_date date default sysdate not null,
+  7  constraint rakesh_pk primary key(emp_id)
+  8* )
+SQL> /
+----------------------------
+-Insert values where last column is populated with default date
+-Note: we don't refer default column name
+insert into rakesh(emp_id,emp_first_name, emp_last_name, emp_city) values(1110, 'David', 'Stone', 'Dallas')
+SQL> /
+
+1 row created.
+=====================================================
+-Increment a number for every succeeding row
+-When sqlldr is loading data in one window and a row is modified in another window, until commit is executed, sqlldr will hang throwing error.
+
+control file:
+********************
+[oracle@ncc1701 rakesh]$ cat rakesh.ctl
+-- load file example
+load data
+INFILE 'rakesh.dat'
+INTO TABLE rakesh
+APPEND
+FIELDS TERMINATED BY ','
+(emp_id SEQUENCE (1110,1),
+ emp_first_name,
+ emp_last_name,
+ emp_city)
+[oracle@ncc1701 rakesh]$ 
+*********************************
+-Eexecute sqlldr
+sqlldr userid=vt442189/vt442189 control=rakesh.ctl log=rakesh.log
+********************
+-output
+-Note: if same data is loaded one more time, emp_id is inserted from 1114 (because we used "append" in the control file - so no delete of existing data
+SQL> select * from rakesh;
+
+    EMP_ID EMP_FIRST_NAME	EMP_LAST_NAME	     EMP_CITY	     LAST_UPDT
+---------- -------------------- -------------------- --------------- ---------
+      1110 first_name		last_name	     city	     19-MAY-18
+      1111 Ram			Raghu		     Ayodya	     19-MAY-18
+      1112 Steven		Sterling	     Portland	     19-MAY-18
+      1113 Melvin		Gibson		     Hollywood	     19-MAY-18
+===============================================================================
+-Same like above but see the emp_id behavior
+control file
+*****************
+S- load file example
+load data
+INFILE 'rakesh.dat'
+INTO TABLE rakesh
+APPEND
+FIELDS TERMINATED BY ','
+(emp_id SEQUENCE (MAX,1110)
+ emp_first_name,
+ emp_last_name,
+ emp_city)
+************************
+-output
+QL> select * from rakesh;
+
+    EMP_ID EMP_FIRST_NAME	EMP_LAST_NAME	     EMP_CITY	     LAST_UPDT
+---------- -------------------- -------------------- --------------- ---------
+      1110 first_name		last_name	     city	     19-MAY-18
+      2220 Ram			Raghu		     Ayodya	     19-MAY-18
+      3330 Steven		Sterling	     Portland	     19-MAY-18
+      4440 Melvin		Gibson		     Hollywood	     19-MAY-18
+
+=============================================================
+-Same as above, but this time number starts at 1
+-control file
+********************
+QL> select * from rakesh;
+
+    EMP_ID EMP_FIRST_NAME	EMP_LAST_NAME	     EMP_CITY	     LAST_UPDT
+---------- -------------------- -------------------- --------------- ---------
+      1110 first_name		last_name	     city	     19-MAY-18
+      2220 Ram			Raghu		     Ayodya	     19-MAY-18
+      3330 Steven		Sterling	     Portland	     19-MAY-18
+      4440 Melvin		Gibson		     Hollywood	     19-MAY-18
+
+SQL> 
+**********************
+-output
+QL> select * from rakesh;
+
+    EMP_ID EMP_FIRST_NAME	EMP_LAST_NAME	     EMP_CITY	     LAST_UPDT
+---------- -------------------- -------------------- --------------- ---------
+	 1 1first_name		last_name	     city	     19-MAY-18
+	 2 1Ram 		Raghu		     Ayodya	     19-MAY-18
+	 3 1Steven		Sterling	     Portland	     19-MAY-18
+	 4 1Melvin		Gibson		     Hollywood	     19-MAY-18
+	 5 2first_name		last_name	     city	     19-MAY-18
+	 6 2Ram 		Raghu		     Ayodya	     19-MAY-18
+	 7 2Steven		Sterling	     Portland	     19-MAY-18
+	 8 2Melvin		Gibson		     Hollywood	     19-MAY-18
+	 9 3first_name		last_name	     city	     19-MAY-18
+	10 3Ram 		Raghu		     Ayodya	     19-MAY-18
+	11 3Steven		Sterling	     Portland	     19-MAY-18
+	12 3Melvin		Gibson		     Hollywood	     19-MAY-18
+	13 4first_name		last_name	     city	     19-MAY-18
+	14 4Ram 		Raghu		     Ayodya	     19-MAY-18
+	15 4Steven		Sterling	     Portland	     19-MAY-18
+	16 4Melvin		Gibson		     Hollywood	     19-MAY-18
+=============================================================================
+-Add a column to a table
+SQL> alter table rakesh
+  2  add emp_org_id number(4);
+
+--------------------
+-to modify a column
+-Note: 3 includes decimal. So, below definition allows only 2 digits in whole number, 2 digits in decimal number
+
+alter table prices modify price number(3,2);
+
+===================================
+-emp_org_id needs to repeat (same id) for all the rows
+-control file
+******************
+oracle@ncc1701 ver3]$ cat *ctl
+-- load file example
+load data
+INFILE 'rakesh.dat'
+INTO TABLE rakesh
+APPEND
+FIELDS TERMINATED BY ','
+(emp_id SEQUENCE (1110,1),
+ emp_first_name,
+ emp_last_name,
+ emp_city,
+ emp_org_id SEQUENCE (2271,0)
+)
+*******************************
+-output
+QL> select * from rakesh;
+
+    EMP_ID EMP_FIRST_NAME	EMP_LAST_NAME	     EMP_CITY	     LAST_UPDT EMP_ORG_ID
+---------- -------------------- -------------------- --------------- --------- ----------
+      1110 first_name		last_name	     city	     19-MAY-18	     2271
+      1111 Ram			Raghu		     Ayodya	     19-MAY-18	     2271
+      1112 Steven		Sterling	     Portland	     19-MAY-18	     2271
+      1113 Melvin		Gibson		     Hollywood	     19-MAY-18	     2271
+
+SQL> 
+=======================================================================================
+-The last_updt_date is a default (sysdate) date, and yet, inserted value is overriding it
+-If we ommit the value for last_updt_date, fails to insert. Work around is shown below
+SQL> insert into rakesh values(1116, 'Kevin', 'Costner', 'New York',to_date('11-12-1973','MM-DD-YYYY'),2271);
+
+data:
+      1116 Kevin		Costner 	     New York	     12-NOV-73	     2271
+********************************
+-Work around: List only fields that you are giving values
+insert into rakesh (emp_id, emp_first_name, emp_last_name, emp_city, emp_org_id) values(1117, 'Kevin', 'Costner', 'New York',2271)
+============================================================================
+-Replace 2272 with 2273 in the file
+-Usually we use single quote like below. However, when variables involved, use double quotes to expand the vars.
+
+sed -i 's/2272/2273/' tmp.ctl
+
+-to global replace
+sed -i "s/$REPLACE_THIS/$WITH_THIS/" tmp.ctl
+
+===============================
+-generate random numbers in bash shell
+#echo $((1 + RANDOM % 10))
+#echo ${RANDOM:0:1} # random number between 1 and 9
+#echo ${RANDOM:0:2} # random number between 1 and 99
+#echo ${RANDOM:0:3} # random number between 1 and 999
+#echo ${RANDOM:0:4} # random number between 1 and 9999
+
+--------------------------
+-to get the second highest salary
+select max(price) from prices where price < (select max(price) from prices);
+--------------------
+--to get nth higest or lowest ranking row
+select * from
+(select price, dense_rank() over (order by price desc) ranking from prices)
+where ranking = 2
+
+or
+select price from prices p1 where 4-1 = (select
+count(distinct price) from prices p2
+where p2.price > p1.price)
+
+---------------
+alter table customer_info
+  2* rename column emp_org_id to org_id
+--------------
+SQL> alter table customer_info
+  2  add start_date date;   
+-------------------------------
+1  alter table customer_info
+  2* add end_date date default sysdate
+--------------------
+alter table customer_info drop column end_date
+-----------------
+set 
+declare
+ x number := 20;
+message varchar2(20) := 'Hello world';
+begin
+  dbms_output.put_line(message);
+  loop
+    dbms_output.put_line('value of x is: ' || x);
+    x := x + 10;
+    if x > 50 then
+      exit;
+    end if;
+  end loop;
+  dbms_output.put_line('After exit, x is: ' || x);
+end;
+// don't forget to put a "/" to execute above pl/sql code
+--------------------------
+declare
+cursor c_customer is
+select first_name from customer_info;
+type c_list is varray(40) of customer_info.first_name%type;
+name_list c_list := c_list();
+counter integer := 0;
+begin
+  for n in c_customer loop
+  counter := counter + 1;
+  name_list.extend;
+  name_list(counter) := n.first_name;
+  dbms_output.put_line('Customer(' || counter || '):' || name_list(counter));
+  end loop;
+end;SQL> /
+Customer(1):Melvin
+Customer(2):Paul
+Customer(3):Shawn
+Customer(4):Geoff
+Customer(5):Grant
+Customer(6):Joe
+Customer(7):Liam
+Customer(8):Noah
+Customer(9):William
+Customer(10):Jason
+Customer(11):Elijah
+Customer(12):Aaron
+Customer(13):James
+Customer(14):Carlos
+Customer(15):Logan
+Customer(16):Benjamin
+Customer(17):Rob
+Customer(18):Frank
+Customer(19):Joe
+Customer(20):Mason
+Customer(21):Samanta
+Customer(22):Rachel
+Customer(23):Nancy
+Customer(24):Viola
+Customer(25):David
+Customer(26):Albert
+Customer(27):Roger
+Customer(28):Karan
+Customer(29):Tim
+Customer(30):Rhett
+Customer(31):Len
+Customer(32):Dave
+Customer(33):Fabian
+Customer(34):Ed
+Customer(35):Maurice
+Customer(36):Elizabeth
+
+
+--------------------
+set serveroutput on;
+1  declare
+  2   total_rows number(2);
+  3  Begin
+  4	update customer_info
+  5	set salary = 5000;
+  6  if sql%notfound then
+  7	dbms_output.put_line('no customers selected');
+  8  elsif sql%found then
+  9	total_rows := sql%rowcount;
+ 10	dbms_output.put_line(' ');
+ 11	dbms_output.put_line(total_rows || ' customers selected');
+ 12  end if;
+ 13* end;
+
+
