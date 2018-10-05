@@ -1,7 +1,6 @@
 Note: There are 3 users
 1) oracle - my1oracle
 2) admin - my1admin
-
 3) vt442189 - vt442189
 has 2 tables
    1) customer
